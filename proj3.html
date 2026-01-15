@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Explorer Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .repo-card:hover {
+            transform: translateY(-5px);
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .loader {
+            border-top-color: #6366f1;
+            animation: spinner 1s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="text-slate-200 min-h-screen">
+
+    <div class="max-w-5xl mx-auto px-4 py-12">
+        <div class="text-center mb-12">
+            <h1
+                class="text-5xl font-extrabold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent mb-4">
+                GitHub User Explorer
+            </h1>
+            <p class="text-slate-400 text-lg">Search profiles, view repositories, and explore stats[cite: 58].</p>
+        </div>
+
+        <div class="glass max-w-2xl mx-auto rounded-2xl p-2 flex items-center mb-12 shadow-2xl">
+            <input type="text" id="usernameInput" placeholder="Enter GitHub username..."
+                class="bg-transparent w-full p-4 outline-none text-white placeholder-slate-500 font-medium">
+            <button id="searchBtn"
+                class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">
+                Search
+            </button>
+        </div>
+
+        <div id="loader" class="hidden flex justify-center mb-8">
+            <div class="loader w-12 h-12 border-4 border-slate-700 rounded-full"></div>
+        </div>
+        <div id="statusMsg" class="hidden text-center p-4 rounded-lg mb-8 font-medium"></div>
+
+        <div id="userProfile" class="hidden glass rounded-3xl p-8 mb-12 animate-in fade-in duration-700">
+        </div>
+
+        <div id="repoSection" class="hidden">
+            <div class="flex items-center gap-4 mb-8">
+                <h2 class="text-2xl font-bold">Public Repositories</h2>
+                <div class="h-[1px] bg-slate-700 flex-grow"></div>
+            </div>
+            <div id="repoList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const searchBtn = document.getElementById('searchBtn');
+        const usernameInput = document.getElementById('usernameInput');
+        const userProfile = document.getElementById('userProfile');
+        const repoList = document.getElementById('repoList');
+        const repoSection = document.getElementById('repoSection');
+        const statusMsg = document.getElementById('statusMsg');
+        const loader = document.getElementById('loader');
+
+        async function fetchGitHubData() {
+            const username = usernameInput.value.trim();
+            if (!username) {
+                alert("Bhai, please enter a username[cite: 82]!");
+                return;
+            }
+
+            // UI Reset
+            userProfile.classList.add('hidden');
+            repoSection.classList.add('hidden');
+            statusMsg.classList.add('hidden');
+            loader.classList.remove('hidden');
+            repoList.innerHTML = '';
+
+            try {
+                const userRes = await fetch(`https://api.github.com/users/${username}`); // [cite: 85]
+                if (userRes.status === 404) {
+                    showError("User not found. Please try another word[cite: 81].");
+                    return;
+                }
+                const userData = await userRes.json();
+
+                const repoRes = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=10`); // [cite: 85]
+                const repos = await repoRes.json();
+
+                displayUser(userData);
+                displayRepos(repos);
+            } catch (err) {
+                showError("Connection failed. Try again!");
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function showError(msg) {
+            statusMsg.textContent = msg;
+            statusMsg.className = "text-rose-400 bg-rose-900/20 p-4 rounded-xl block border border-rose-500/30";
+            statusMsg.classList.remove('hidden');
+            loader.classList.add('hidden');
+        }
+
+        function displayUser(user) {
+            userProfile.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-10 items-center">
+                    <div class="relative">
+                        <img src="${user.avatar_url}" class="w-40 h-40 rounded-3xl border-4 border-indigo-500/30 shadow-2xl relative z-10">
+                        <div class="absolute -bottom-2 -right-2 w-40 h-40 bg-indigo-600/20 rounded-3xl blur-xl"></div>
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <div class="flex flex-wrap justify-center md:justify-between items-start gap-4 mb-4">
+                            <div>
+                                <h2 class="text-4xl font-bold text-white mb-1">${user.name || 'Anonymous'}</h2>
+                                <p class="text-indigo-400 font-mono text-lg">@${user.login}</p>
+                            </div>
+                            <a href="${user.html_url}" target="_blank" class="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-xl text-sm font-semibold transition-all">Visit Profile [cite: 69]</a>
+                        </div>
+                        <p class="text-slate-300 text-lg mb-6 max-w-2xl">${user.bio || 'This developer prefers to keep their bio a mystery.'} [cite: 68]</p>
+                        <div class="flex flex-wrap justify-center md:justify-start gap-6 text-sm">
+                            <div class="flex flex-col"><span class="text-slate-500 uppercase text-xs font-bold tracking-widest">Followers</span><span class="text-xl font-bold text-white">${user.followers} [cite: 68]</span></div>
+                            <div class="flex flex-col"><span class="text-slate-500 uppercase text-xs font-bold tracking-widest">Following</span><span class="text-xl font-bold text-white">${user.following} [cite: 68]</span></div>
+                            <div class="flex flex-col"><span class="text-slate-500 uppercase text-xs font-bold tracking-widest">Location</span><span class="text-xl font-bold text-white">${user.location || 'Remote'} [cite: 68]</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            userProfile.classList.remove('hidden');
+        }
+
+        function displayRepos(repos) {
+            if (repos.length > 0) {
+                repos.forEach(repo => {
+                    const card = document.createElement('div');
+                    card.className = "repo-card glass p-6 rounded-2xl border border-slate-700/50 flex flex-col justify-between";
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="font-bold text-xl text-cyan-400 truncate pr-2">${repo.name} [cite: 74]</h3>
+                                <span class="bg-indigo-500/10 text-indigo-400 text-xs px-2 py-1 rounded-md font-bold border border-indigo-500/20">⭐ ${repo.stargazers_count} </span>
+                            </div>
+                            <p class="text-slate-400 text-sm mb-6 line-clamp-2">${repo.description || 'No description provided.'} [cite: 75]</p>
+                        </div>
+                        <a href="${repo.html_url}" target="_blank" class="text-cyan-500 font-bold text-sm hover:underline inline-flex items-center gap-1">Source Code ↗ [cite: 78]</a>
+                    `;
+                    repoList.appendChild(card);
+                });
+                repoSection.classList.remove('hidden');
+            }
+        }
+
+        searchBtn.addEventListener('click', fetchGitHubData); // [cite: 64]
+        usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') fetchGitHubData(); }); // [cite: 66]
+    </script>
+</body>
+
+</html>
